@@ -11,7 +11,10 @@ import {
   UseInterceptors,
   UploadedFile,
   UseGuards,
+  Req,
+  ForbiddenException,
 } from '@nestjs/common';
+import { CacheInterceptor, CacheKey, CacheTTL } from '@nestjs/cache-manager';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiTags,
@@ -38,6 +41,9 @@ export class BarbersController {
       'Si es cliente/público, devuelve barberos activos sin datos sensibles. Si es admin, devuelve todos los detalles.',
   })
   @ApiResponse({ status: 200, description: 'Lista de barberos obtenida.' })
+  @UseInterceptors(CacheInterceptor)
+  @CacheKey('barbers_all')
+  @CacheTTL(60000) // 60 segundos
   @Get()
   async obtenerBarberos() {
     return this.barbersService.obtenerBarberos();
@@ -52,6 +58,9 @@ export class BarbersController {
     status: 200,
     description: 'Barberos públicos obtenidos correctamente.',
   })
+  @UseInterceptors(CacheInterceptor)
+  @CacheKey('barbers_public')
+  @CacheTTL(60000) // 60 segundos
   @Get('public')
   async getPublicBarbers() {
     return this.barbersService.getPublicBarbers();
@@ -134,10 +143,10 @@ export class BarbersController {
   }
 
   @ApiBearerAuth()
-  @Roles(1, 3) // Solo Admin
+  @Roles(1, 3) // Admin y Barbero
   @UseGuards(JwtAuthGuard, RolesGuard)
   @ApiOperation({
-    summary: 'Actualizar datos de barbero (Admin)',
+    summary: 'Actualizar datos de barbero',
     description: 'Permite modificar cualquier dato de un barbero.',
   })
   @ApiParam({ name: 'id', description: 'ID del barbero a editar', example: 1 })
@@ -149,7 +158,12 @@ export class BarbersController {
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateBarberDto: UpdateBarberDto,
+    @Req() req: any,
   ) {
+    // Si es un barbero (rol 3), solo puede editar su propio perfil
+    if (req.user.id_rol === 3 && req.user.id !== id) {
+      throw new ForbiddenException('No tienes permiso para editar el perfil de otro barbero');
+    }
     return this.barbersService.update(id, updateBarberDto);
   }
 

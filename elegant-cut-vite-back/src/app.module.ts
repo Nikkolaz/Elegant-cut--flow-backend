@@ -1,7 +1,8 @@
 import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { CacheModule } from '@nestjs/cache-manager';
 import { LoggerMiddleware } from './common/middlewares/logger.middleware';
-import { PrismaModule } from './prisma/prisma.module'; // La ruta a tu carpeta prisma
+import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { BarbersModule } from './modules/barbers/barbers.module';
 import { AppointmentsModule } from './modules/appointments/appointments.module';
@@ -22,6 +23,11 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
       ignoreEnvFile:
         process.env.NODE_ENV === 'production' || !!process.env.DATABASE_URL,
     }),
+    // Caché en Memoria (In-Memory Cache) configurado globalmente
+    CacheModule.register({
+      isGlobal: true,
+      ttl: 60000, // 60 segundos (los datos cacheados expiran en 1 minuto)
+    }),
     PrismaModule,
     AuthModule,
     UsersModule,
@@ -34,6 +40,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
     EmailModule,
     PortabarberoModule,
     UploadsModule,
+
     NotificationsModule,
   ],
 })
